@@ -3,6 +3,7 @@ import AbstractCreep from 'Model/Creep/AbstractCreep';
 export interface EnergySource {
     positions: RoomPosition[];
     creeps: {creep: Creep; position: RoomPosition}[]
+    carriers: Id<Creep>[];
 }
 
 

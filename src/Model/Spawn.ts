@@ -1,6 +1,7 @@
 import Room from 'Model/Room';
-import set = Reflect.set;
 import CreepFactory from 'Factory/CreepFactory';
+import settings from 'settings';
+import set = Reflect.set;
 
 
 export default class _Spawn {
@@ -15,7 +16,7 @@ export default class _Spawn {
             return;
         }
 
-        if (CreepFactory.spawn(this, type)) {
+        if (CreepFactory.spawn(this, type) === OK) {
             Cache.memoryForget('next-spawn-' + this.id);
         }
     }
@@ -66,7 +67,16 @@ export default class _Spawn {
                     .map((source) => source.getAvailablePositions().length)
                     .reduce((a, b) => a + b, 0);
 
-                if (allowedSlots <= 0) {
+                // Don't spawn more miners if there are no slots available
+                if (allowedSlots <= 0 || settings!.total! >= allowedSlots) {
+                    continue;
+                }
+            }
+
+            // Only spawn half as many Carriers as Miners
+            if (type === 'CreepCarrier') {
+                const miners = this.room.getCreepsOfType('CreepMiner')
+                if (settings!.total! >= miners.length / 2) {
                     continue;
                 }
             }

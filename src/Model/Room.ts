@@ -3,11 +3,13 @@ import Spawn from 'Model/Spawn';
 import AbstractCreep from 'Model/Creep/AbstractCreep';
 import CreepFactory from 'Factory/CreepFactory';
 import Population from 'Model/Population';
+import StoreManager from 'Manager/StoreManager';
 
 export default class _Room {
     public readonly sources: _Source[]           = [];
     public readonly spawns: Spawn[]              = [];
     public readonly creeps: AbstractCreep<any>[] = [];
+    public readonly storeManager: StoreManager;
     public readonly population: Population;
 
     public constructor(public readonly name: string, public readonly room: Room) {
@@ -15,6 +17,7 @@ export default class _Room {
         this.initialize<Spawn, StructureSpawn>(this.spawns, FIND_MY_SPAWNS, (s) => new Spawn(this, s.id, s));
         this.initialize<AbstractCreep<any>, Creep>(this.creeps, FIND_MY_CREEPS, (c) => CreepFactory.create(this, c));
 
+        this.storeManager = new StoreManager(this);
         this.population = new Population(this);
     }
 
@@ -36,7 +39,7 @@ export default class _Room {
         return this.creeps.filter((c) => c.type === type);
     }
 
-    public getAvailableSources(): _Source[] {
-        return this.sources.filter((source) => source.getAvailablePositions().length > 0);
+    public getAvailableSources(checkOccupied = false): _Source[] {
+        return this.sources.filter((source) => source.getAvailablePositions(checkOccupied).length > 0);
     }
 }

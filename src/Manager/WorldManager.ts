@@ -14,7 +14,13 @@ export default class WorldManager {
 
         Object.values(this.rooms).forEach((room) => {
             room.spawns.forEach((spawn) => spawn.spawnNextCreep());
-            room.creeps.forEach((creep) => creep.act());
+            room.creeps.forEach((creep) => {
+                // @todo Re-add loop, need to make sure this doesn't nuke CPU though
+                let code: ScreepsReturnCode;
+                //do {
+                    code = creep.act();
+                //} while(code === OK);
+            });
         })
     }
 

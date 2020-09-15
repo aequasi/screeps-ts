@@ -36,14 +36,10 @@ export const loop = ErrorMapper.wrapLoop(() => {
         }
     }
 
-    log('<--------------------------------------------------->');
+    log('<span style="color:green"><---------------------------------------------------></span>');
 
     tick++;
-    try {
 //        profiler.wrap(global.WorldManager.tick.bind(global.WorldManager, tick));
-        global.WorldManager.tick(tick);
-    } catch (e) {
-        log(e.stack);
-    }
+    global.WorldManager.tick(tick);
 });
 

@@ -3,26 +3,25 @@ import settings from 'settings';
 
 export default class Population {
     public readonly distribution: Settings['creeps'] = {} as any;
-    private population                       = 0;
+    private population                               = 0;
 
     constructor(private readonly room: Room) {
         _.assign(this.distribution, settings.creeps);
 
         const self = this;
         for (const name of Object.keys(this.distribution)) {
-            this.distribution[name as CreepType].total = 0;
             if (typeof this.distribution[name as CreepType].total === 'undefined') {
-                Object.defineProperty(this.distribution[name as CreepType], "currentPercentage", {
+                Object.defineProperty(this.distribution[name as CreepType], 'total', {
                     get: function currentPercentage() {
-                        return this.total / self.room.creeps.length;
-                    }
+                        return self.room.room.find(FIND_MY_CREEPS).filter((x) => x.memory.role === name).length;
+                    },
                 });
             }
             if (typeof this.distribution[name as CreepType].currentPercentage === 'undefined') {
-                Object.defineProperty(this.distribution[name as CreepType], "currentPercentage", {
+                Object.defineProperty(this.distribution[name as CreepType], 'currentPercentage', {
                     get: function currentPercentage() {
                         return this.total / self.room.creeps.length;
-                    }
+                    },
                 });
             }
         }
@@ -36,10 +35,8 @@ export default class Population {
             }
 
             if (!this.distribution[type]) {
-                throw new Error("Unknown creep type: " + type);
+                throw new Error('Unknown creep type: ' + type);
             }
-
-            this.distribution[type].total!++;
         });
     }
 }

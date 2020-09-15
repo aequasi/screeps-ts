@@ -2,18 +2,22 @@ import Room from 'Model/Room';
 import {AbstractCreep} from 'Model/Creep';
 
 export default class _Source {
-    private static isCreepAlive(creepDict: {creep: Creep}) {
+    private static isCreepAlive(creepDict: { creep: Creep }) {
         let creep = creepDict.creep;
 
         return Game.creeps[creep.name] !== null;
     }
 
-    private get positions() {
+    public get positions() {
         return this.getMemory().positions;
     }
 
-    private get creeps() {
+    public get creeps() {
         return this.getMemory().creeps;
+    }
+
+    public get carriers() {
+        return this.getMemory().carriers;
     }
 
     public constructor(public readonly room: Room, public readonly id: string, public readonly source: Source) {
@@ -38,6 +42,18 @@ export default class _Source {
             }
         }
 
+        for (const [index, creep] of Object.entries(sourceMemory.creeps)) {
+            if (!Game.creeps[creep.creep.name]) {
+                sourceMemory.creeps = sourceMemory.creeps.splice(index as any, 1);
+            }
+        }
+        for (const index of Object.keys(sourceMemory.carriers)) {
+            const id = sourceMemory.carriers[index as any];
+            if (!Game.creeps[id]) {
+                sourceMemory.carriers = sourceMemory.carriers.splice(index as any, 1);
+            }
+        }
+
         const memory           = Cache.memoryGet('energySources');
         memory[this.source.id] = sourceMemory;
         Cache.memorySet('energySources', memory);
@@ -47,16 +63,16 @@ export default class _Source {
      * Gets all the available positions around this source. Filters out terrain, and walls
      * @private
      */
-    public getAvailablePositions() {
+    public getAvailablePositions(checkOccupied = true) {
         return this.positions.map(p => {
             // Fetch the position
             // @todo See if this is worth keeping in memory
-            const pos  = Cache.remember(
+            const pos = Cache.remember(
                 `room-${this.room.room.name}-position-at-${p.x}-${p.y}`,
                 () => this.room.room.getPositionAt(p.x, p.y),
             );
             if (!pos) {
-                return null
+                return null;
             }
 
             // @todo See if this is worth keeping in memory
@@ -69,10 +85,10 @@ export default class _Source {
                 }
 
                 // If a creep owns this spot already, and that creep still exists, its not available
-                let creepDict = this.creeps.find(dict => dict.position.isEqualTo(pos));
-                if (creepDict) {
+                let creepDict = this.creeps.find((dict) => pos.isEqualTo(dict.position));
+                if (checkOccupied && creepDict) {
                     if (_Source.isCreepAlive(creepDict)) {
-                        continue;
+                        return null;
                     }
 
                     this.removeCreepByIndex(this.creeps.findIndex(dict => dict.position.isEqualTo(pos)));
@@ -102,13 +118,65 @@ export default class _Source {
         return pos;
     }
 
+    public getCreep(creep: AbstractCreep<CreepMiner>) {
+        return this.creeps.find((x) => x.creep.id === creep.id);
+    }
+
+    /**
+     * Adds this creep, and their location, to the memory, so the next loop is aware of whats goin on
+     * @param creep
+     * @param position
+     */
+    public addCreep(creep: AbstractCreep<CreepMiner>, position: RoomPosition) {
+        let sourceMemory = this.getMemory();
+
+        if (!sourceMemory.creeps.find(c => c.creep.id == creep.id)) {
+            sourceMemory.creeps.push({creep: creep.creep, position: position});
+        }
+
+        let memory             = Cache.memoryGet('energySources');
+        memory[this.source.id] = sourceMemory;
+        Cache.memorySet('energySources', memory);
+    }
+
+    /**
+     * Adds this carrier to the memory, so the next loop is aware of whats goin on
+     * @param creep
+     */
+    public addCarrier(creep: AbstractCreep<CreepCarrier>) {
+        let sourceMemory = this.getMemory();
+
+        if (!sourceMemory.carriers.find(c => c == creep.id)) {
+            sourceMemory.carriers.push(creep.id as Id<Creep>);
+        }
+
+        let memory             = Cache.memoryGet('energySources');
+        memory[this.source.id] = sourceMemory;
+        Cache.memorySet('energySources', memory);
+    }
+
+    public removeCreep(creep: AbstractCreep<CreepMiner>) {
+        let sourceMemory = this.getMemory();
+        const index      = sourceMemory.creeps.findIndex((x) => x.creep.id === creep.id);
+        if (index >= 0) {
+            this.removeCreepByIndex(index);
+        }
+    }
+
+    public removeCarrier(creep: AbstractCreep<CreepCarrier>) {
+        let sourceMemory = this.getMemory();
+        const index      = sourceMemory.carriers.findIndex((x) => x === creep.id);
+        if (index >= 0) {
+            this.removeCarrierByIndex(index);
+        }
+    }
+
     private getMemory() {
         const memory = Cache.memoryRemember('energySources', () => {
             return {};
         });
-        if (!memory[this.source.id]) {
-            memory[this.source.id] = {positions: [], creeps: []};
-        }
+
+        memory[this.source.id] = _.extend({positions: [], creeps: [], carriers: []}, memory[this.source.id]);
 
         return memory[this.source.id];
     }
@@ -134,27 +202,18 @@ export default class _Source {
         );
     }
 
-    /**
-     * Adds this creep, and their location, to the memory, so the next loop is aware of whats goin on
-     * @param creep
-     * @param position
-     * @private
-     */
-    private addCreep(creep: AbstractCreep<CreepMiner>, position: RoomPosition) {
-        let sourceMemory = this.getMemory();
-
-        if (!sourceMemory.creeps.find(c => c.creep.id == creep.id)) {
-            sourceMemory.creeps.push({creep: creep.creep, position: position});
-        }
+    private removeCreepByIndex(index: number) {
+        let sourceMemory    = this.getMemory();
+        sourceMemory.creeps = sourceMemory.creeps.splice(index, 1);
 
         let memory             = Cache.memoryGet('energySources');
         memory[this.source.id] = sourceMemory;
         Cache.memorySet('energySources', memory);
     }
 
-    private removeCreepByIndex(index: number) {
+    private removeCarrierByIndex(index: number) {
         let sourceMemory    = this.getMemory();
-        sourceMemory.creeps = sourceMemory.creeps.splice(index, 1);
+        sourceMemory.carriers = sourceMemory.carriers.splice(index, 1);
 
         let memory             = Cache.memoryGet('energySources');
         memory[this.source.id] = sourceMemory;

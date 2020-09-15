@@ -22,8 +22,8 @@ export default class CreepFactory {
         throw new Error('Invalid creep role: ' + creep.memory.role);
     }
 
-    public static spawn<T extends CreepType, R extends AbstractCreep<T>>(spawn: Spawn, type: T): R | undefined {
-        const id   = ('' + new Date().getTime()).substr(4);
+    public static spawn<T extends CreepType, R extends AbstractCreep<T>>(spawn: Spawn, type: T): ScreepsReturnCode {
+        const id   = ('' + new Date().getTime());
         const data = this.getBestCreepOfType(spawn.room, type);
 
         const {level, abilities} = data;
@@ -41,12 +41,10 @@ export default class CreepFactory {
                 `(Energy: ${spawn.room.room.energyAvailable} / ${this.getPointsForAbilities(abilities)})`,
             );
 
-            return undefined;
+            return code;
         }
 
-        const creeps = spawn.room.room.find(FIND_MY_CREEPS);
-
-        return this.create<T, R>(spawn.room, creeps.find((x) => x.name === name)!);
+        return code;
     }
 
     private static getBestCreepOfType<T extends CreepType, R extends AbstractCreep<T>>(room: Room, type: T): Level {
